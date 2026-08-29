@@ -8,7 +8,7 @@ local SettingsPreset = { -- Settings will be generated from file unless: the fil
     KeyBinds = { -- Example: ["H"] = "-tphouse" or ["R"] = "reset me"
 
     },
-    WhitelistedPlayers = {}, -- UserId's (UNUSED)
+    WhitelistedPlayers = {WAKAS897}, -- UserId's (UNUSED)
     BlacklistedGear = {"BanHammer","Tool"},
     Debug = false, -- (UNUSED)
     BannedPlayers = {}, -- User-id's, must be numbers not strings
