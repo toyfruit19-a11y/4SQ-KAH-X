@@ -654,6 +654,2345 @@ Handler:AddCommand("beam", {
 
     for i = 1, 30 do
         for _, V in ipairs(workspace:GetDescendants()) do
+            if V:IsA("    if not IsItemClassAllowed or not Item:IsDescendantOf(workspace) then
+        return false
+    end
+    return true
+end
+
+function Handler:AddCommand(Name, CommandTable, Function)
+    Commands[string.lower(Name)] = {CommandTable, Function}
+    if not CommandTable.Arguments then
+        CommandTable.Arguments = {}
+    end
+    if CommandTable.Aliases and #CommandTable.Aliases > 0 then
+        for i,v in CommandTable.Aliases do
+            Aliases[string.lower(v)] = Name
+        end
+    end
+    if not CommandTable.Description then
+        CommandTable.Description = ""
+    end
+end
+
+function Handler:RunCommand(CommandName, Arguments, FullString)
+    local Command = Commands[CommandName] or Commands[Aliases[CommandName]]
+    if not Command then
+        Functions:Notification("4SQ Command Handler", "Invalid Command Name", 5)
+        return
+    end
+    local ArgumentsApproved = Handler:CheckArguments(Command[1].Args, Arguments)
+    if ArgumentsApproved then
+        Command[2](Arguments, FullString)
+    end
+end
+
+function f3x(tbl) -- f3x id: 142785488
+	local tool
+	tool = game.Players.LocalPlayer.Backpack:FindFirstChild("Building Tools") or (game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("Building Tools"))
+	if not tool then
+		Functions:Chat("btools me")
+		tool = game.Players.LocalPlayer.Backpack:WaitForChild("Building Tools", 2)
+	end
+	assert(tool, "Failed to get Building Tools")
+	local SyncAPI = tool:WaitForChild("SyncAPI", 2)
+	assert(SyncAPI, "Failed to retrieve SyncAPI")
+	local ServerEndpoint = SyncAPI:WaitForChild("ServerEndpoint", 2)
+	assert(ServerEndpoint, "Failed to retrieve ServerEndpoint")
+	if tbl then
+		return ServerEndpoint:InvokeServer(unpack(tbl))
+	end
+end
+
+function Functions:GetChildrenOfName(instance, name)
+    local tbl = {}
+    for i,v in instance:GetChildren() do
+        if v.Name == name then
+            table.insert(tbl, v)
+        end
+    end
+    return tbl
+end
+
+function Functions:GetChildrenOfClass(instance, classname)
+    local tbl = {}
+    for i,v in instance:GetChildren() do
+        if v:IsA(classname) then
+            table.insert(tbl, v)
+        end
+    end
+    return tbl
+end
+
+function gp(str)
+	if str and type(str) == "string" and str ~= "" then
+		local players = game.Players:GetPlayers()
+		if str:lower() == "all" then
+			return players
+		elseif str:lower() == "others" then
+			table.remove(players, table.find(players, game.Players.LocalPlayer))
+			return players
+		elseif str:lower() == "me" then
+			return {game.Players.LocalPlayer}
+		elseif str:lower() == "friends" then
+			for i, v in players do
+				if not v:IsFriendsWith(game.Players.LocalPlayer.UserId) then
+					table.remove(players, i)
+				end
+			end
+			return players
+        elseif str:lower() == "nonfriends" then
+            table.remove(players, table.find(players, game.Players.LocalPlayer))
+            for i, v in players do
+				if v:IsFriendsWith(game.Players.LocalPlayer.UserId) then
+					table.remove(players, i)
+				end
+			end
+			return players
+        elseif str:lower() == "random" then
+            return {players[math.random(1, #players)]}
+		else
+			players = {}
+			for i, v in game.Players:GetPlayers() do
+				if v.Name:lower():sub(1, str:len()) == str:lower() or v.DisplayName:lower():sub(1, str:len()) == str:lower() then
+					table.insert(players, v)
+				end
+			end
+			return players
+		end
+	else
+		return {}
+	end
+end
+
+function Functions:IsDescendantOfPlayerCharacter(instance)
+    local character = instance:FindFirstAncestorOfClass("Model")
+    local Player = game.Players:GetPlayerFromCharacter(character)
+    if Player then
+        return true
+    else
+        return false
+    end
+end
+
+function Functions:WaitForChildOfClass(instance, classname, timeout)
+    for i,v in instance:GetChildren() do
+        if v:IsA(classname) then
+            return v
+        end
+    end
+    local start = os.clock()
+    local found
+    local connection
+    connection = instance.ChildAdded:Connect(function(child)
+        if child:IsA(classname) then
+            found = child
+        end
+    end)
+    while not found do
+        if timeout and (os.clock() - start) >= timeout then
+            connection:Disconnect()
+            return nil
+        end
+        task.wait()
+    end
+    connection:Disconnect()
+    return found
+end
+
+function Functions:RegenerateSettings()
+    if not SettingsPreset.FileSystem then
+        return
+    end
+    local success, Encoded = pcall(function()
+        return game:GetService("HttpService"):JSONEncode(Settings)
+    end)
+    if success and Encoded then
+        writefile("4SQ-T7/Settings.json", Encoded)
+        print("[4SQ T7 File Manager]: Updated Settings.json")
+    else
+        warn("[4SQ T7 File Manager]: Failed to encode Settings.")
+    end
+end
+
+task.spawn(function()
+    ChangeLogs = game:HttpGet("https://raw.githubusercontent.com/blueskykah/4SQ-T7/refs/heads/main/ChangeLog") or "Failed to retrieve ChangeLogs"
+end)
+
+if genv and genv.sethiddenproperty then
+    sethiddenproperty(workspace, "SignalBehavior", Enum.SignalBehavior.Immediate)
+    print("Set signal behavior to immediate.")
+end
+
+if genv and genv.isfolder and genv.makefolder and genv.writefile and genv.isfile and genv.readfile and SettingsPreset.FileSystem then
+    print("[4SQ T7 File Manager]: Creating and/or initializing files...")
+    if not isfolder("4SQ-T7") then
+        print("[4SQ T7 File Manager]: Root folder not found, creating a new one...")
+        makefolder("4SQ-T7")
+        print("[4SQ T7 File Manager]: Created root folder.")
+    end
+    local SettingsFile = isfile("4SQ-T7/Settings.json")
+    if not SettingsFile then
+        print("[4SQ T7 File Manager]: Settings.json not found or broken, attempting to create a new one with default preset...")
+        local success, Encoded = pcall(function()
+            return game:GetService("HttpService"):JSONEncode(SettingsPreset)
+        end)
+        if success and Encoded then
+            writefile("4SQ-T7/Settings.json", Encoded)
+            print("[4SQ T7 File Manager]: New Settings.json has been created.")
+        else
+            warn("[4SQ T7 File Manager]: Failed to encode default Settings.")
+        end
+    else
+        local success, decoded = pcall(function()
+            return game:GetService("HttpService"):JSONDecode(readfile("4SQ-T7/Settings.json"))
+        end)
+        if success and type(decoded) == "table" then
+            Settings = decoded
+            print("[4SQ T7 File Manager]: Settings successfully loaded from Settings.json")
+        else
+            warn("[4SQ T7 File Manager]: Settings.json is corrupted or invalid. Using defaults.")
+        end
+    end
+else
+    print("[4SQ T7 File Manager]: Using preset settings.")
+end
+
+-- \\ Commands // --
+
+Handler:AddCommand("wakacommands", {Args = {}, Aliases = {"wcmds"}, Description = ""}, function(Arguments, FullString)
+    local Str = "\nAsterisks around an argument means the argument is required for the command to function and vice-versa\n\n"
+    for i,v in Commands do
+        Str ..= Settings.Prefix..i.." Description = \""..v[1].Description.."\" | Arguments = {"..table.concat(v[1].Args, ", ").."} | Aliases = {"..table.concat(v[1].Aliases, ", ").."}\n\n"
+    end
+
+    Str ..= [[
+
+========== WAKAS897 CMDS ==========
+
+-- PREFIX IS (-) --
+-- TO ACTIVE PERM ADMIN SAY -PERM --
+
+ypg = setup skateboard kick
+ypj = setup potato kick
+ban (username) = ban a player so he can't join you again
+clrbans = clear all banned players IDs from banlist
+rk = potato kick
+py = skateboard kick
+sl skat = serverlock using skateboard method any new player join will be crashed
+hou = teleport to house
+jm = join messages / leave messages
+storm = weather
+Volcano = weather
+sunset = weather
+rj / rejoin = rejoins the same server
+tnok = no obby kill
+lk (username) = lock player in sky while blinded punished until unlk
+unlk (username) = unlocks a player from setgrav punish blind loop
+pads = gets you all admin pads once
+loopgrab = gets all 9 admin pads loopgrabbing until you say -stoploopgrab (laggy a bit)
+nuke (username) = spam explode a player stops after 20 explodes
+spam (command) (username) = spam a command until -stopspam
+stopspam = stop the spam looping command
+gb (username) = GEARBAN A PLAYER SO HE CAN'T USE GEARS AGAIN
+ungb (username) = UNGEARBAN A PLAYER SO HE CAN USE GEARS AGAIN
+
+==========================================
+]]
+
+    print(Str)
+    Functions:Notification("Alert", "Check developer console to see a list of commands.", 5)
+end)
+
+Handler:AddCommand("lk", {Args = {"*Player"}, Aliases = {}, Description = "Runs setgrav, punish and blind until unlk."}, function(Arguments, FullString)
+    local Target = Arguments[1]
+
+    if not Target then
+        return
+    end
+
+    Variables.LKLoop = true
+
+    task.spawn(function()
+        for i = 1, 10000 do
+            if not Variables.LKLoop then
+                break
+            end
+
+            Functions:Chat("setgrav "..Target.." -20e20")
+            task.wait(0.1)
+            Functions:Chat("blind "..Target)
+            task.wait(0.2)
+            Functions:Chat("punish "..Target)
+
+            if i < 10000 then
+                task.wait(2)
+            end
+        end
+
+        Variables.LKLoop = false
+    end)
+end)
+
+local VisParts = {}
+local VisTarget = nil
+local VisRunning = false
+local VisCrazy = false
+local RainbowRunning = false
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local function FindPlayer(Name)
+    if not Name then
+        return LocalPlayer
+    end
+
+    Name = Name:lower()
+
+    for _, Player in ipairs(Players:GetPlayers()) do
+        if Player.Name:lower():sub(1, #Name) == Name
+        or Player.DisplayName:lower():sub(1, #Name) == Name then
+            return Player
+        end
+    end
+
+    return nil
+end
+
+local function GetNewPart(Existing)
+    for _, V in ipairs(workspace:GetDescendants()) do
+        if V:IsA("BasePart")
+        and not Existing[V]
+        and V.Size == Vector3.new(2, 2, 2) then
+            return V
+        end
+    end
+end
+
+local function CreateVisPart()
+    local Existing = {}
+
+    for _, V in ipairs(workspace:GetDescendants()) do
+        if V:IsA("BasePart") then
+            Existing[V] = true
+        end
+    end
+
+    Functions:Chat("part/2/2/2")
+
+    for _ = 1, 20 do
+        local Part = GetNewPart(Existing)
+
+        if Part then
+            table.insert(VisParts, Part)
+            return Part
+        end
+
+        task.wait(0.05)
+    end
+end
+
+local function StartVis(Target)
+    if VisRunning then
+        VisTarget = Target
+        return
+    end
+
+    VisRunning = true
+    VisTarget = Target or LocalPlayer
+
+    -- Create 10 parts
+    for i = 1, 10 do
+        CreateVisPart()
+        task.wait(0.08)
+    end
+
+    task.spawn(function()
+        while VisRunning do
+            local Character = VisTarget and VisTarget.Character
+            local Root = Character and Character:FindFirstChild("HumanoidRootPart")
+
+            if Root then
+                local Time = os.clock()
+                local Count = #VisParts
+
+                for i, Part in ipairs(VisParts) do
+                    if Part and Part.Parent then
+
+                        local Angle =
+                            Time * (VisCrazy and 7 or 2)
+                            + ((i - 1) / Count) * math.pi * 2
+
+                        -- Normal: 10–15 studs
+                        -- Crazy: rapidly changes between 8–18 studs
+                        local Radius
+
+                        if VisCrazy then
+                            Radius =
+                                13
+                                + math.sin(Time * 10 + i * 1.7) * 5
+                                + math.sin(Time * 17 + i) * 2
+                        else
+                            Radius =
+                                12
+                                + math.sin(Time * 2 + i) * 3
+                        end
+
+                        -- Slightly underneath/around the player
+                        local Height
+
+                        if VisCrazy then
+                            Height =
+                                0
+                                + math.sin(Time * 9 + i) * 5
+                        else
+                            Height =
+                                1.5
+                                + math.sin(Time * 3 + i) * 1.5
+                        end
+
+                        local Offset = Vector3.new(
+                            math.cos(Angle) * Radius,
+                            Height,
+                            math.sin(Angle) * Radius
+                        )
+
+                        Part.CFrame =
+                            CFrame.new(Root.Position + Offset)
+                    end
+                end
+            end
+
+            task.wait()
+        end
+    end)
+end
+
+-- .vis
+-- .vis Username
+Handler:AddCommand("vis", {
+    Args = {"*Player"},
+    Aliases = {},
+    Description = "Creates floating VIS parts."
+}, function(Arguments)
+
+    local Target = FindPlayer(Arguments[1])
+
+    if not Target then
+        return
+    end
+
+    StartVis(Target)
+end)
+
+-- .move vis
+Handler:AddCommand("move", {
+    Args = {"*Text"},
+    Aliases = {},
+    Description = "Makes VIS move faster and crazier."
+}, function(Arguments)
+
+    if Arguments[1]
+    and Arguments[1]:lower() == "vis" then
+
+        if VisRunning then
+            VisCrazy = true
+        end
+    end
+end)
+
+-- .rainbowvis
+Handler:AddCommand("rainbowvis", {
+    Args = {},
+    Aliases = {"rainbow"},
+    Description = "Makes VIS parts rainbow."
+}, function()
+
+    if not VisRunning then
+        StartVis(LocalPlayer)
+    end
+
+    -- Give PaintBucket through your existing gear command
+    Functions:Chat("gear me paintbucket")
+
+    task.wait(0.3)
+
+    if RainbowRunning then
+        return
+    end
+
+    RainbowRunning = true
+
+    task.spawn(function()
+        local Hue = 0
+
+        while RainbowRunning and VisRunning do
+            Hue = (Hue + 0.015) % 1
+
+            local RainbowColor = Color3.fromHSV(Hue, 1, 1)
+
+            for _, Part in ipairs(VisParts) do
+                if Part and Part.Parent then
+                    Part.Color = RainbowColor
+                end
+            end
+
+            task.wait(0.05)
+        end
+    end)
+end)
+
+-- .unvis
+Handler:AddCommand("unvis", {
+    Args = {},
+    Aliases = {},
+    Description = "Stops VIS."
+}, function()
+
+    VisRunning = false
+    RainbowRunning = false
+    VisCrazy = false
+    VisTarget = nil
+
+    for _, Part in ipairs(VisParts) do
+        if Part and Part.Parent then
+            Part:Destroy()
+        end
+    end
+
+    table.clear(VisParts)
+end)
+
+Handler:AddCommand("unlk", {Args = {}, Aliases = {}, Description = "Stops the LK loop."}, function(Arguments, FullString)
+    Variables.LKLoop = false
+end)
+
+Handler:AddCommand("volcano", {Args = {}, Aliases = {}, Description = "Volcano atmosphere."}, function(Arguments, FullString)
+    Functions:Chat("time 18")
+    task.wait(0.1)
+
+    Functions:Chat("brightness 2")
+    task.wait(0.1)
+
+    Functions:Chat("ambient 1 nan nan")
+    task.wait(0.1)
+
+    Functions:Chat("fogend 40")
+    task.wait(0.1)
+
+    Functions:Chat("music 9112822944")
+end)
+
+Handler:AddCommand("noobbykill", {Args = {}, Aliases = {"tnok"}, Description = "Disables touch on the obby parts."}, function(Arguments, FullString)
+    for _, c in game.Workspace.Tabby.Admin_House.Obby:GetChildren() do
+        if c:IsA("BasePart") then
+            c.CanTouch = false
+        end
+    end
+end)
+
+local ActiveBeams = {}
+
+local function FindPlayer(Name)
+    if not Name then return nil end
+    Name = Name:lower()
+
+    for _, P in ipairs(game.Players:GetPlayers()) do
+        if P.Name:lower():sub(1, #Name) == Name
+        or P.DisplayName:lower():sub(1, #Name) == Name then
+            return P
+        end
+    end
+end
+
+Handler:AddCommand("beam", {
+    Args = {"*Player"},
+    Aliases = {},
+    Description = "Creates a realistic beam above a player."
+}, function(Arguments)
+
+    local Target = FindPlayer(Arguments[1])
+    if not Target then return end
+
+    if ActiveBeams[Target] then
+        ActiveBeams[Target]:Destroy()
+        ActiveBeams[Target] = nil
+    end
+
+    local Existing = {}
+
+    for _, V in ipairs(workspace:GetDescendants()) do
+        if V:IsA("BasePart") then
+            Existing[V] = true
+        end
+    end
+
+    -- Spawn the server-sided part
+    Functions:Chat("part/10/10/10")
+
+    local Part
+
+    for i = 1, 30 do
+        for _, V in ipairs(workspace:GetDescendants()) do
+            if V:IsA("BasePart")
+                and not Existing[V]
+                and V.Size == Vector3.new(10, 10, 10) then
+
+                Part = V
+                break
+            end
+        end
+
+        if Part then break end
+        task.wait(0.05)
+    end
+
+    if not Part then
+        warn("Beam part was not found")
+        return
+    end
+
+    Part.Name = "WakasBeam"
+    Part.Shape = Enum.PartType.Cylinder
+    Part.Size = Vector3.new(100, 2.5, 2.5)
+    Part.Material = Enum.Material.Glass
+    Part.Reflectance = 1
+    Part.Transparency = 0.05
+    Part.CanCollide = false
+    Part.Anchored = true
+
+    -- Rotate cylinder vertically
+    Part.CFrame =
+        CFrame.new(0, 0, 0)
+        * CFrame.Angles(0, 0, math.rad(90))
+
+    -- Light
+    local Light = Instance.new("PointLight")
+    Light.Name = "BeamLight"
+    Light.Brightness = 4
+    Light.Range = 20
+    Light.Shadows = true
+    Light.Parent = Part
+
+    -- Beam particles
+    local Particles = Instance.new("ParticleEmitter")
+    Particles.Name = "BeamParticles"
+    Particles.Rate = 20
+    Particles.Lifetime = NumberRange.new(0.3, 0.6)
+    Particles.Speed = NumberRange.new(0, 0)
+    Particles.SpreadAngle = Vector2.new(180, 180)
+    Particles.Size = NumberSequence.new(0.2)
+    Particles.Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0, 0.2),
+        NumberSequenceKeypoint.new(1, 1)
+    })
+    Particles.Parent = Part
+
+    ActiveBeams[Target] = Part
+
+    -- Follow target
+    task.spawn(function()
+        while ActiveBeams[Target] == Part and Part.Parent do
+            local Character = Target.Character
+            local Root = Character and Character:FindFirstChild("HumanoidRootPart")
+
+            if Root then
+                Part.CFrame =
+                    CFrame.new(Root.Position + Vector3.new(0, 50, 0))
+                    * CFrame.Angles(0, 0, math.rad(90))
+            end
+
+            task.wait()
+        end
+    end)
+
+    -- 0.3 second delay between every function
+    Functions:Chat("speed " .. Target.Name .. " 90")
+    task.wait(0.3)
+
+    Functions:Chat("flashify " .. Target.Name)
+    task.wait(0.3)
+
+    Functions:Chat("god " .. Target.Name)
+end)
+
+Handler:AddCommand("unbeam", {
+    Args = {"*Player"},
+    Aliases = {},
+    Description = "Removes the player's beam."
+}, function(Arguments)
+
+    local Target = FindPlayer(Arguments[1])
+    if not Target then return end
+
+    local Part = ActiveBeams[Target]
+
+    if Part then
+        ActiveBeams[Target] = nil
+        Part:Destroy()
+    end
+end)
+
+Handler:AddCommand("clr", {Args = {}, Aliases = {}, Description = "(Has Rare Issues) Removes all garbage from the workspace."}, function(Arguments, FullString)
+    local ToBeRemoved = {}
+    for i,v in workspace:GetDescendants() do
+        if Functions:IsItemAllowed(v) and not v:IsA("Status") and not Functions:IsDescendantOfPlayerCharacter(v) and not game.Players:GetPlayerFromCharacter(v) and not v:IsDescendantOf(workspace.Terrain) then
+            table.insert(ToBeRemoved, v)
+        end
+    end
+    f3x({"Remove", ToBeRemoved})
+end)
+
+local ActiveBeams = {}
+
+local function FindPlayer(Name)
+    if not Name then return nil end
+    Name = Name:lower()
+
+    for _, P in ipairs(game.Players:GetPlayers()) do
+        if P.Name:lower():sub(1, #Name) == Name
+        or P.DisplayName:lower():sub(1, #Name) == Name then
+            return P
+        end
+    end
+end
+
+Handler:AddCommand("clearsettings", {Args = {}, Aliases = {}, Description = "Clears the Settings.json file and generates a new one from the preset config"}, function(Arguments, FullString)
+    local success, Encoded = pcall(function()
+        return game:GetService("HttpService"):JSONEncode(SettingsPreset)
+    end)
+    if success and Encoded then
+        writefile("4SQ-T7/Settings.json", Encoded)
+        print("[4SQ T7 File Manager]: New Settings.json has been created.")
+    else
+        warn("[4SQ T7 File Manager]: Failed to encode default Settings.")
+    end
+    Settings = SettingsPreset
+end)
+
+Handler:AddCommand("prefix", {Args = {"*Prefix*"}, Aliases = {}, Description = "Changes the prefix (1 character for now.)"}, function(Arguments, FullString)
+    local Prfx = Arguments[1]
+    if string.len(Prfx) > 1 then
+        Functions:Notification("4SQ T7", "Prefix must be 1 character.", 3)
+        return
+    end
+    Settings.Prefix = Prfx
+    Functions:RegenerateSettings()
+end)
+
+Handler:AddCommand("changelogs", {Args = {}, Aliases = {}, Description = "Lists the changelogs in the developer console."}, function(Arguments, FullString)
+    print(ChangeLogs)
+end)
+
+Handler:AddCommand("autorun", {Args = {"*String*"}, Aliases = {}, Description = "This will add a 4SQ command to be automatically ran/chatted on execute"}, function(Arguments, FullString)
+    table.insert(Settings.AutoCommands, FullString)
+    print("[4SQ T7]: Added \""..FullString.."\" to AutoCommands")
+    Functions:RegenerateSettings()
+end)
+
+Handler:AddCommand("listautorun", {Args = {}, Aliases = {}, Description = "Lists all commands inside Settings.AutoCommands"}, function(Arguments, FullString)
+    local str = "\n"
+    for i,v in Settings.AutoCommands do
+        str ..= Settings.Prefix..v.."\n"
+    end
+    print(str)
+end)
+
+Handler:AddCommand("sunset", {Args = {}, Aliases = {}, Description = "Creates a sunset preset."}, function(Arguments, FullString)
+    Functions:Chat("/c system")
+    Functions:Chat("time 7")
+    task.wait(0.1)
+    Functions:Chat("brightness 2")
+    task.wait(0.1)
+    Functions:Chat("ambient 1 0.5 0.5")
+task.wait(0.1)
+Functions:DisableCSystem()
+end)
+
+Handler:AddCommand("storm", {Args = {}, Aliases = {}, Description = "Creates a storm preset."}, function(Arguments, FullString)
+    Functions:Chat("/c system")
+    Functions:Chat("time 18")
+    task.wait(0.1)
+    Functions:Chat("brightness 2")
+    task.wait(0.1)
+    Functions:Chat("ambient nan nan 2")
+    task.wait(0.1)
+    Functions:Chat("fogend 45")
+    task.wait(0.1)
+    Functions:Chat("music 9120016022")
+end)
+
+Handler:AddCommand("potatokick", {Args = {"*Player*"}, Aliases = {"pkick","rk"}, Description = "potato kick."}, function(Arguments, FullString)
+    if not Variables.PKS then
+        return
+    end
+    for i,v in gp(Arguments[1]) do
+        local plrtool = v.Character:FindFirstChildOfClass("Tool")
+        if plrtool then
+            f3x({"Remove", {plrtool}})
+            Functions:Chat("ungear "..v.Name)
+        end
+        local Part = f3x({"CreatePart", "Normal", CFrame.new(math.random(1000,100000),math.random(1000,100000),math.random(1000,100000)), v.Character})
+        Functions:Chat("blind "..v.Name)
+        Functions:Chat("size "..v.Name.." nan")
+        local Tool = Variables.PKS:FindFirstChildOfClass("Tool")
+        if not Tool then
+            print("Tool not found, aborting kick...")
+            return
+        end
+        f3x({"SetName", {Tool, Part}, "Crashed by 4SQ"})
+        repeat task.wait() until (v.Character.Head.Position - v.Character.HumanoidRootPart.Position).Magnitude < 0.5
+        f3x({"Clone", table.create(3, Tool), v.Character})
+        f3x({"SetName", {Tool}, Functions:RandomString(math.random(25,100))})
+    end
+end)
+
+Handler:AddCommand("pads", {Args = {}, Aliases = {}, Description = "Brings all admin pads to you briefly."}, function(Arguments, FullString)
+    local Player = game.Players.LocalPlayer
+    local Character = Player.Character or Player.CharacterAdded:Wait()
+    local Root = Character:WaitForChild("HumanoidRootPart")
+
+    local Pads = workspace.Terrain._Game.Admin.Pads
+    local Saved = {}
+
+    for _, Pad in Pads:GetChildren() do
+        local Head = Pad:FindFirstChild("Head")
+
+        if Head and Head:IsA("BasePart") then
+            Saved[Head] = {
+                CFrame = Head.CFrame,
+                CanCollide = Head.CanCollide
+            }
+
+            Head.CanCollide = false
+            Head.CFrame = Root.CFrame
+        end
+    end
+
+    task.wait(0.1)
+
+    for Head, Data in pairs(Saved) do
+        if Head and Head.Parent then
+            Head.CFrame = Data.CFrame
+            Head.CanCollide = Data.CanCollide
+        end
+    end
+end)
+
+local ThreePadsLoop = false
+
+Handler:AddCommand("perm", {
+    Args = {},
+    Aliases = {},
+    Description = "Continuously claims 3 admin pads to get you perm admin."
+}, function()
+    if ThreePadsLoop then return end
+    ThreePadsLoop = true
+
+    task.spawn(function()
+        while ThreePadsLoop do
+            local Character = game.Players.LocalPlayer.Character
+            local Root = Character and Character:FindFirstChild("HumanoidRootPart")
+            local Pads = workspace.Terrain._Game.Admin.Pads
+
+            if Root then
+                local PadList = Pads:GetChildren()
+
+                for i = 1, math.min(3, #PadList) do
+                    local Head = PadList[i]:FindFirstChild("Head")
+
+                    if Head then
+                        firetouchinterest(Head, Root, 0)
+                        firetouchinterest(Head, Root, 1)
+                    end
+                end
+            end
+
+            task.wait(0.5)
+        end
+    end)
+end)
+
+Handler:AddCommand("unperm", {
+    Args = {},
+    Aliases = {},
+    Description = "Stops the perm.."
+}, function()
+    ThreePadsLoop = false
+end)
+
+Handler:AddCommand("tphouse", {Args = {}, Aliases = {"hou"}, Description = "Teleports you to the middle of the house."}, function(Arguments, FullString)
+    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-30.0650005, 8.63000011, 72.2430038, 1, 0, -4.37113883e-08, 0, 1, 0, 4.37113883e-08, 0, 1)
+end)
+
+local LoopGrab = false
+
+Handler:AddCommand("loopgrab", {
+    Args = {},
+    Aliases = {},
+    Description = "Continuously grabs all admin pads."
+}, function()
+    if LoopGrab then return end
+    LoopGrab = true
+
+    task.spawn(function()
+        while LoopGrab do
+            local Character = game.Players.LocalPlayer.Character
+            local Play = Character and Character:FindFirstChild("HumanoidRootPart")
+            local Pads = workspace.Terrain._Game.Admin.Pads:GetChildren()
+
+            if Play then
+                for _, Pad in ipairs(Pads) do
+                    local Head = Pad:FindFirstChild("Head")
+
+                    if Head then
+                        firetouchinterest(Head, Play, 0)
+                        firetouchinterest(Head, Play, 1)
+                    end
+                end
+            end
+
+            task.wait(0.1)
+        end
+    end)
+end)
+
+Handler:AddCommand("stoploopgrab", {
+    Args = {},
+    Aliases = {},
+    Description = "Stops loop taking admin pads."
+}, function()
+    LoopGrab = false
+end)
+
+Handler:AddCommand("unantikick", {Args = {}, Aliases = {}, Description = ""}, function(Arguments, FullString)
+    Variables.AntiKick = false
+    for i,v in workspace:GetDescendants() do
+        if v:IsA("SkateboardPlatform") then
+            v.CanTouch = true
+        end
+    end
+end)
+
+local Player = game.Players.LocalPlayer
+local Character = Player.Character or Player.CharacterAdded:Wait()
+
+local OriginalSizes = {}
+
+for _, Part in ipairs(Character:GetChildren()) do
+    if Part:IsA("BasePart") then
+        OriginalSizes[Part.Name] = Part.Size
+    end
+end
+
+for _, Part in ipairs(Character:GetChildren()) do
+    if Part:IsA("BasePart") then
+        Part:GetPropertyChangedSignal("Size"):Connect(function()
+            if OriginalSizes[Part.Name] then
+                Part.Size = OriginalSizes[Part.Name]
+            end
+        end)
+    end
+end
+
+Handler:AddCommand("skateboardkicksetup", {Args = {}, Aliases = {"ypg"}, Description = "Sets up the skateboard kick."}, function(Arguments, FullString)
+    if Variables.SKickFolder and Variables.SKickFolder.Parent == workspace.Terrain and Variables.SKickFolder:FindFirstChildOfClass("SkateboardPlatform") then
+        Functions:Notification("Error", "Kick Folder Already Exists!", 3)
+        return
+    end
+    local ToBeRemoved = {}
+    for i,v in workspace:GetChildren() do
+        if v.Name == "Skateboard" then
+            table.insert(ToBeRemoved, v)
+        end
+    end
+    f3x({"Remove", ToBeRemoved})
+    Functions:Chat("gear me 27902303")
+    local SkateboardTool = game.Players.LocalPlayer.Backpack:WaitForChild("ROBLOXSkateboard", 3)
+    if not SkateboardTool then
+        Functions:Notification("Error", "Failed to get tool.", 3)
+        return
+    end
+    SkateboardTool.Parent = game.Players.LocalPlayer.Character
+    SkateboardTool:Activate()
+    local SkateboardModel = workspace:WaitForChild("Skateboard", 5)
+    if not SkateboardModel then
+        Functions:Notification("Error", "Failed to get model, did you place it?", 3)
+        return
+    end
+    local SkateboardPlatform = SkateboardModel:WaitForChild("SkateboardPlatform", 3)
+    if not SkateboardPlatform then
+        Functions:Notification("Error", "Failed to get kickpart.", 3)
+        return
+    end
+    task.spawn(function()
+        f3x({"SetName", {SkateboardPlatform}, Functions:RandomString(math.random(25, 100))})
+    end)
+    f3x({"Remove", {SkateboardPlatform:FindFirstChildOfClass("Mesh")}})
+    f3x({"SyncMaterial", {{Part = SkateboardPlatform, Transparency = 1}}})
+    if SkateboardPlatform.Anchored == true then
+        SkateboardPlatform:GetPropertyChangedSignal("Anchored"):Wait()
+    end
+    f3x({"SyncAnchor", {{Part = SkateboardPlatform, Anchored = true}}})
+    f3x({"SyncResize", {{Part = SkateboardPlatform, CFrame = CFrame.new(0, -565, 0), Size = Vector3.new(50,50,50)}}})
+    Variables.SKickFolder = f3x({"CreateGroup", "Model", workspace.Terrain, {}})
+    task.spawn(function()
+        f3x({"SetName", {Variables.SKickFolder}, Functions:RandomString(math.random(25,100))})
+    end)
+    local TemporaryFolder = f3x({"CreateGroup", "Folder", Variables.SKickFolder, {SkateboardPlatform}})
+    repeat task.wait() until TemporaryFolder and SkateboardPlatform.Parent == TemporaryFolder
+    f3x({"Ungroup", {TemporaryFolder}})
+    f3x({"Remove", {SkateboardModel}})
+    repeat task.wait() until SkateboardPlatform.Parent == Variables.SKickFolder
+    Functions:Chat("removetools others fuck")
+    Functions:Notification("Success", "Set up successfully!", 3)
+end)
+
+Handler:AddCommand("skateboardkick", {Args = {"*Player*"}, Aliases = {"skick","py","kick"}, Description = "Sets up the skateboard kick."}, function(Arguments, FullString)
+    if not Variables.SKickFolder or Variables.SKickFolder.Parent ~= workspace.Terrain or not Variables.SKickFolder:FindFirstChildOfClass("SkateboardPlatform") then
+        Functions:Notification("Error", "Kick Folder Doesn't exist or is broken!", 3)
+        return
+    end
+    for i,v in gp(Arguments[1]) do
+        task.spawn(function()
+            local kicktime = os.clock()
+            local SkateboardPlatform = Variables.SKickFolder:FindFirstChildOfClass("SkateboardPlatform")
+            task.spawn(function()
+                f3x({"Clone", {SkateboardPlatform}, v.Character})
+            end)
+            SkateboardPlatform = Functions:WaitForChildOfClass(v.Character, "SkateboardPlatform")
+            local OriginalCFrame = SkateboardPlatform.CFrame
+            f3x({"SyncResize", {{Part = SkateboardPlatform, CFrame = CFrame.new(math.random(10000, 100000),math.random(10000, 100000),math.random(10000, 100000)), Size = Vector3.new(100, 100, 100)}}})
+            repeat task.wait() until SkateboardPlatform.CFrame ~= OriginalCFrame
+            local SkateboardCFrame = SkateboardPlatform.CFrame
+            local Con
+            Con = SkateboardPlatform.ChildAdded:Connect(function(m)
+                if m:IsA("Motor6D") ~= true then
+                    return
+                end
+                Con:Disconnect()
+                local FinalTime = tostring(math.floor((os.clock() - kicktime) * 1000))
+                print("[4SQ V3.5]: Kicked player: \""..v.DisplayName.."\" in "..FinalTime.." milliseconds")
+                Functions:Notification("Kicked "..v.DisplayName, FinalTime.."ms", 3)
+                f3x({"Remove", {SkateboardPlatform, v.Character}})
+            end)
+            f3x({"SyncMove", {{Part = v.Character.HumanoidRootPart, CFrame = SkateboardCFrame}}})
+            task.delay(10, function()
+                if Con and Con.Connected then
+                    Con:Disconnect()
+                    print("[4SQ V3.5]: 10 seconds have passed, abandoning kick and cleaning up the mess.")
+                    f3x({"Remove", {SkateboardPlatform, v.Character}})
+                end
+            end)
+        end)
+    end
+end)
+
+Handler:AddCommand("ban", {Args = {"*Player*"}, Aliases = {}, Description = "Bans a player using the skateboard method."}, function(Arguments, FullString)
+    for i,v in gp(Arguments[1]) do
+        table.insert(Settings.BannedPlayers, v.UserId)
+        Commands["skateboardkick"][2]({v.Name})
+    end
+    Functions:RegenerateSettings()
+end)
+
+Handler:AddCommand("joinmessages", {Args = {}, Aliases = {"jm"}, Description = "Enables join and leave hint messages."}, function(Arguments, FullString)
+    if Variables.JoinMessages then
+        return
+    end
+
+    Variables.JoinMessages = true
+
+    -- Your join message
+    task.spawn(function()
+        task.wait(0.1)
+        Functions:Chat("h WAKAS897 HAS JOINED THE GAME!")
+    end)
+
+    -- Players joining after you
+    Connections[#Connections + 1] = game.Players.PlayerAdded:Connect(function(Player)
+        task.wait(0.1)
+        Functions:Chat("h "..Player.Name.." HAS JOINED THE GAME!")
+    end)
+
+    -- Players leaving
+    Connections[#Connections + 1] = game.Players.PlayerRemoving:Connect(function(Player)
+        Functions:Chat("h "..Player.Name.." HAS LEFT THE GAME!")
+    end)
+end)
+
+Handler:AddCommand("unjm", {
+    Args = {},
+    Aliases = {},
+    Description = "Disables join and leave hint messages."
+}, function(Arguments, FullString)
+
+    Variables.JoinMessages = false
+
+    for i = #Connections, 1, -1 do
+        local Connection = Connections[i]
+
+        if Connection then
+            Connection:Disconnect()
+            table.remove(Connections, i)
+        end
+    end
+
+end)
+
+Handler:AddCommand("idban", {Args = {"*User-Id*"}, Aliases = {}, Description = "Bans a user-id from joining."}, function(Arguments, FullString)
+    if tonumber(Arguments[1]) ~= nil and not table.find(Settings.BannedPlayers, tonumber(Arguments[1])) then
+        table.insert(Settings.BannedPlayers, tonumber(Arguments[1]))
+        for i,v in game.Players:GetPlayers() do
+            if v.UserId == tonumber(Arguments[1]) then
+                Commands["skateboardkick"][2]({v.Name})
+                break
+            end
+        end
+        Functions:RegenerateSettings()
+    end
+end)
+
+Handler:AddCommand("keybind", {Args = {"*Add/Remove*", "*Text/BindToRemove*"}, Aliases = {"bind"}, Description = "Adds or removes a keybind."}, function(Arguments, FullString)
+    local LA = string.lower(Arguments[1])
+    local Text = string.sub(FullString, string.len(Arguments[1]) + 2)
+    local AOR = (LA == "add" or LA == "remove") and LA
+    if not AOR then
+        return
+    end
+    local Con1
+    if AOR == "add" then
+        Variables.KeyBinds = false
+        Functions:Notification("Paused Keybinds", "Press a key on your keyboard to bind it to your chosen text.", 5)
+        Con1 = game:GetService("UserInputService").InputBegan:Connect(function(key, istyping)
+            if istyping then
+                return
+            end
+            local KeyCode = key.KeyCode.Name
+            Settings.KeyBinds[KeyCode] = Text
+            Functions:RegenerateSettings()
+            Con1:Disconnect()
+            task.defer(function()
+                Variables.KeyBinds = true
+                Functions:Notification("Unpaused Keybinds", "Bound \""..KeyCode.."\" to \""..Text.."\".", 5)
+            end)
+        end)
+    elseif AOR == "remove" then
+        local KeyBind = Settings.KeyBinds[Arguments[2]]
+        if not KeyBind then
+            return
+        end
+        Settings.KeyBinds[Arguments[2]] = nil
+        Functions:Notification("Removed Keybind", "Unbound key \""..Arguments[2].."\".")
+        Functions:RegenerateSettings()
+    end
+end)
+
+Handler:AddCommand("rj", {Args = {}, Aliases = {"rejoin"}, Description = "Rejoins the current server."}, function(Arguments, FullString)
+    game:GetService("TeleportService"):TeleportToPlaceInstance(
+        game.PlaceId,
+        game.JobId,
+        game.Players.LocalPlayer
+    )
+end)
+
+local SpamRunning = false
+
+local SpamRunning = false
+
+Handler:AddCommand("spam", {
+    Args = {"*Command"},
+    Aliases = {},
+    Description = "Spams a command."
+}, function(Arguments, FullString)
+
+    if SpamRunning then return end
+
+    local Command = FullString:sub(Arguments[1]:len() + 2)
+
+    if not Command or Command == "" then
+        return
+    end
+
+    SpamRunning = true
+
+    task.spawn(function()
+        while SpamRunning do
+            Functions:Chat(Command)
+            task.wait(0.5)
+        end
+    end)
+end)
+
+Handler:AddCommand("stopspam", {
+    Args = {},
+    Aliases = {},
+    Description = "Stops spam."
+}, function()
+    SpamRunning = false
+end)
+
+Handler:AddCommand("keybinds", {Args = {}, Aliases = {"binds"}, Description = "Lists active keybinds."}, function(Arguments, FullString)
+    local Str = "\n \\ \\ KeyBinds / /\n"
+    for i,v in Settings.KeyBinds do
+        Str ..= i.." == \""..v.."\"\n"
+    end
+    print(Str)
+end)
+
+local Players = game:GetService("Players")
+
+local GearWatch = {}
+local Connections = {}
+
+local function FindPlayer(Name)
+    if not Name or Name == "" then
+        return nil
+    end
+
+    Name = Name:lower()
+
+    for _, Player in ipairs(Players:GetPlayers()) do
+        if Player.Name:lower():sub(1, #Name) == Name
+            or Player.DisplayName:lower():sub(1, #Name) == Name then
+            return Player
+        end
+    end
+end
+
+local function WatchPlayer(Player)
+    if not Player or GearWatch[Player] then
+        return
+    end
+
+    GearWatch[Player] = true
+    Connections[Player] = {}
+    
+    Functions:Chat("h (" .. Player.Name .. ") GOT GEARBANNED!")
+
+    local function WatchBackpack(Backpack)
+        if not Backpack then
+            return
+        end
+
+        table.insert(Connections[Player],
+            Backpack.ChildAdded:Connect(function(Item)
+
+                if not GearWatch[Player] then
+                    return
+                end
+
+                if Item:IsA("Tool") then
+                    task.wait(0.05)
+
+                    if GearWatch[Player] then
+                        Functions:Chat("ungear " .. Player.Name)
+                    end
+                end
+            end)
+        )
+    end
+
+    local Backpack = Player:FindFirstChildOfClass("Backpack")
+
+    if Backpack then
+        WatchBackpack(Backpack)
+    end
+
+    table.insert(Connections[Player],
+        Player.ChildAdded:Connect(function(Child)
+
+            if Child:IsA("Backpack") then
+                WatchBackpack(Child)
+            end
+        end)
+    )
+end
+
+local function StopWatching(Player)
+    GearWatch[Player] = nil
+
+    if Connections[Player] then
+        for _, Connection in ipairs(Connections[Player]) do
+            Connection:Disconnect()
+        end
+
+        Connections[Player] = nil
+    end
+
+    Functions:Chat("h (" .. Player.Name .. ") CAN USE GEARS AGAIN!")
+end
+
+Handler:AddCommand("gb", {
+    Args = {"*Player"},
+    Aliases = {},
+    Description = "Automatically un-gears a player."
+}, function(Arguments)
+
+    local Target = FindPlayer(Arguments[1])
+
+    if Target then
+        WatchPlayer(Target)
+    end
+end)
+
+Handler:AddCommand("ungb", {
+    Args = {"*Player"},
+    Aliases = {},
+    Description = "Stops the gear watcher."
+}, function(Arguments)
+
+    local Target = FindPlayer(Arguments[1])
+
+    if Target then
+        StopWatching(Target)
+    end
+end)
+
+Handler:AddCommand("unban", {Args = {"*User-Id*"}, Aliases = {}, Description = "Unbans a player using their user-id."}, function(Arguments, FullString)
+    local UserId = tonumber(Arguments[1])
+    if table.find(Settings.BannedPlayers, UserId) then
+        table.remove(Settings.BannedPlayers, table.find(Settings.BannedPlayers, UserId))
+        local Success, Username = pcall(function()
+            return game.Players:GetNameFromUserIdAsync(UserId)
+        end)
+        if Success then
+            Functions:Notification("Success", "Unbanned: "..Username, 3)
+        end
+        Functions:RegenerateSettings()
+    else
+        Functions:Notification("Error", "Player not banned.", 3)
+    end
+end)
+
+Handler:AddCommand("banlist", {Args = {}, Aliases = {"bans"}, Description = "Prints list of banned players"}, function(Arguments, FullString)
+    local Str = "\n"
+    for i,v in Settings.BannedPlayers do
+        Str ..= tostring(v).."\n"
+    end
+    print(Str)
+end)
+
+local AntiSpeed = true
+local Player = game.Players.LocalPlayer
+
+local function SetupAntiSpeed(Character)
+    local Humanoid = Character:WaitForChild("Humanoid")
+    local NormalSpeed = Humanoid.WalkSpeed
+
+    Humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+        if AntiSpeed and Humanoid.WalkSpeed ~= NormalSpeed then
+            Humanoid.WalkSpeed = NormalSpeed
+        end
+    end)
+end
+
+if Player.Character then
+    SetupAntiSpeed(Player.Character)
+end
+
+Player.CharacterAdded:Connect(SetupAntiSpeed)
+
+Handler:AddCommand("clrbans", {Args = {}, Aliases = {}, Description = "Clears banlist."}, function(Arguments, FullString)
+    Settings.BannedPlayers = {}
+end)
+
+local Player = game.Players.LocalPlayer
+
+local function SetupAntiSetgrav(Character)
+    local Root = Character:WaitForChild("HumanoidRootPart")
+
+    Root.ChildAdded:Connect(function(Object)
+        if Object.Name == "BFRC" and Object:IsA("BodyForce") then
+            Functions:Chat("reset me")
+        end
+    end)
+end
+
+if Player.Character then
+    SetupAntiSetgrav(Player.Character)
+end
+
+Player.CharacterAdded:Connect(SetupAntiSetgrav)
+
+Handler:AddCommand("sl", {Args = {"*skat*"}, Aliases = {}, Description = "Locks the server."}, function(Arguments, FullString)
+    local Option
+    if not Arguments[1] then
+        return
+    elseif string.sub("skateboard", 1, string.len(Arguments[1])) == Arguments[1]:lower() then
+        Option = "Skateboard"
+    else
+        return
+    end
+    Variables.ServerLock = Option
+    Functions:Notification("ServerLock", "Set mode to: "..Option, 3)
+end)
+
+Handler:AddCommand("unsl", {Args = {}, Aliases = {}, Description = "Unlocks the server."}, function(Arguments, FullString)
+    Variables.ServerLock = nil
+    Functions:Notification("ServerLock","Successfully disabled ServerLock", 3)
+end)
+
+Handler:AddCommand("reg", {
+    Args = {},
+    Aliases = {},
+    Description = "Clicks the admin regen button."
+}, function()
+
+    local Regen = workspace.Terrain._Game.Admin.Regen
+    local ClickDetector = Regen:FindFirstChildOfClass("ClickDetector")
+
+    if not ClickDetector then
+        return
+    end
+
+    fireclickdetector(ClickDetector)
+end)
+
+local Player = game.Players.LocalPlayer
+
+task.spawn(function()
+    while Player.Parent do
+
+        local Character = Player.Character
+
+        if Character then
+            local Root = Character:FindFirstChild("HumanoidRootPart")
+
+            if Root then
+                local Pads = workspace.Terrain._Game.Admin.Pads
+
+                -- Find ONE pad
+                for _, Pad in Pads:GetChildren() do
+                    local Head = Pad:FindFirstChild("Head")
+
+                    if Head and Head:IsA("BasePart") then
+
+                        local SavedCFrame = Head.CFrame
+                        local SavedCanCollide = Head.CanCollide
+
+                        -- Briefly bring ONE pad to you
+                        Head.CanCollide = false
+                        Head.CFrame = Root.CFrame
+
+                        task.wait(0.1)
+
+                        -- Put it back
+                        if Head and Head.Parent then
+                            Head.CFrame = SavedCFrame
+                            Head.CanCollide = SavedCanCollide
+                        end
+
+                        -- Stop after ONE pad
+                        break
+                    end
+                end
+            end
+        end
+
+        task.wait(1)
+    end
+end)
+
+Handler:AddCommand("nuke", {
+    Args = {"*Player"},
+    Aliases = {},
+    Description = "Repeats the explode command 20 times."
+}, function(Arguments)
+
+    local Target = Arguments[1]
+
+    if not Target then
+        return
+    end
+
+    for i = 1, 20 do
+        Functions:Chat("explode " .. Target)
+        task.wait(0.1)
+    end
+end)
+
+Handler:AddCommand("potatokicksetup", {Args = {}, Aliases = {"ypj"}, Description = "potato kick setup."}, function(Arguments, FullString)
+    if Variables.YPJ then
+        return
+    end
+    local TempPart = f3x({"CreatePart", "Normal", CFrame.new(0,0,0), workspace.Terrain})
+    f3x({"CreateLights", {{Part = TempPart, LightType = "PointLight"}}})
+    f3x({"SyncLighting", {{Part = TempPart, LightType = "PointLight", Brightness = 0}}})
+    Variables.PKS = TempPart:WaitForChild("PointLight")
+    f3x({"SetName", {Variables.PKS}, Functions:RandomString(math.random(1,100))})
+    f3x({"Ungroup", {TempPart}})
+    Functions:Chat("gear me ??")
+    local Tool = game.Players.LocalPlayer.Backpack:WaitForChild("Tool")
+    Tool.Parent = game.Players.LocalPlayer.Character
+    f3x({"SetParent", {Tool}, Variables.PKS})
+    f3x({"SetName", {Tool}, Functions:RandomString(math.random(1,100))})
+end)
+
+Handler:AddCommand("gearblacklist", {Args = {"*On/Off*","Strict? (Y/N)"}, Aliases = {}, Description = "Monitors player inventories for blacklisted gear. (Strict will also monitor workspace)"}, function(Arguments, FullString)
+    local LT = string.lower(Arguments[1])
+    local LT2 = Arguments[2] and string.lower(Arguments[2])
+    local AOR = (LT == "on" or LT == "off") and LT
+    local AOR2 = (LT2 and (LT2 == "y" or LT2 == "n")) and LT2
+    if not AOR then
+        warn("[4SQ T7]: Invalid input (must be \"on\" or \"off\")")
+        return
+    elseif AOR == "off" then
+        Variables.GearBlacklist = nil
+        Functions:Notification("Gear Blacklist Disabled", "Disabled the gear blacklist.")
+        return
+    end
+    if AOR2 and AOR2 == "y" then
+        Variables.GearBlacklist = "Strict"
+        Functions:Notification("Gear Blacklist Enabled", "Set blacklist mode to strict.")
+        return
+    end
+    Variables.GearBlacklist = true
+    Functions:Notification("Gear Blacklist Enabled", "Set blacklist mode to normal.")
+end)
+
+local AntiPunish = true
+local Player = game.Players.LocalPlayer
+
+local function SetupAntiPunish(Character)
+    Character:GetPropertyChangedSignal("Parent"):Connect(function()
+        if AntiPunish and Character.Parent == game.Lighting then
+            Functions:Chat("unpunish me")
+        end
+    end)
+end
+
+if Player.Character then
+    SetupAntiPunish(Player.Character)
+end
+
+Player.CharacterAdded:Connect(SetupAntiPunish)
+
+Handler:AddCommand("delpotatokicksetup", {Args = {}, Aliases = {"dpks"}, Description = "Deletes the potato kick setup."}, function(Arguments, FullString)
+    if not Variables.PKS then
+        return
+    end
+    f3x({"Remove", {Variables.PKS}})
+    Variables.PKS = nil
+end)
+
+-- \\ Connections // --
+task.spawn(function()
+    Connections[#Connections + 1] = game.TextChatService.SendingMessage:Connect(function(Message)
+        Message = Message.Text
+        if string.sub(Message, 1, string.len(Settings.Prefix)) == Settings.Prefix then
+            Message = string.sub(Message, string.len(Settings.Prefix) + 1)
+            local Arguments = {}
+            for i in string.gmatch(Message, "([^%s]+)") do
+                table.insert(Arguments, i)
+            end
+            task.spawn(function()
+                Handler:RunCommand(Arguments[1], {table.unpack(Arguments, 2)}, Message:sub(Arguments[1]:len() + 2))
+            end)
+        end
+    end)
+end)
+
+task.spawn(function()
+    Connections[#Connections + 1] = workspace.DescendantAdded:Connect(function(Object)
+        if Object:IsA("SkateboardPlatform") and Variables.AntiKick then
+            Object.CanTouch = false
+            Object:GetPropertyChangedSignal("CanTouch"):Connect(function()
+                Object.CanTouch = false
+            end)
+        elseif Variables.GearBlacklist == "Strict" and Object:IsA("Tool") and table.find(SettingsPreset.BlacklistedGear, Object.Name) then
+            task.defer(function()
+                local plr = game.Players:GetPlayerFromCharacter(Object:FindFirstAncestorOfClass("Model"))
+                if plr and (plr == game.Players.LocalPlayer or table.find(Settings.WhitelistedPlayers, plr.UserId)) then
+                    return
+                end
+                f3x({"Remove", {Object}})
+            end)
+        end
+    end)
+end)
+
+task.spawn(function()
+    Connections[#Connections + 1] = game.Players.DescendantAdded:Connect(function(Tool)
+        if Variables.GearBlacklist and Tool:IsA("Tool") and Tool.Parent:IsA("Backpack") and table.find(SettingsPreset.BlacklistedGear, Tool.Name) then
+            local plr = Tool:FindFirstAncestorOfClass("Player")
+            if plr == game.Players.LocalPlayer or table.find(Settings.WhitelistedPlayers, plr.UserId) then
+                return
+            end
+            Functions:Chat("ungear others")
+        end
+    end)
+end)
+
+task.spawn(function()
+    Connections[#Connections + 1] = game.Players.LocalPlayer.PlayerGui.ChildAdded:Connect(function(Object)
+        if Object:IsA("LocalScript") and Object.Name == "Crash" then
+            Object.Enabled = false
+            game.Debris:AddItem(Object,0)
+            print("Intercepted potato crash script.")
+        end
+    end)
+end)
+
+task.spawn(function()
+    Connections[#Connections + 1] = game.Players.PlayerAdded:Connect(function(Player)
+        print("[4SQ T7]: Player \""..Player.DisplayName.."\" aka \""..Player.Name.."\" has joined the server, user-id: "..Player.UserId)
+        if Variables.ServerLock and Variables.ServerLock == "Skateboard" then
+            Player.CharacterAdded:Wait()
+            repeat task.wait() until Player.Character:FindFirstChild("HumanoidRootPart") and Player.Character:FindFirstChild("Torso") and Player.Character:FindFirstChild("Head")
+            Commands["skateboardkick"][2]({Player.Name})
+        elseif table.find(Settings.BannedPlayers, Player.UserId) then
+            Player.CharacterAdded:Wait()
+            repeat task.wait() until Player.Character:FindFirstChild("HumanoidRootPart") and Player.Character:FindFirstChild("Torso") and Player.Character:FindFirstChild("Head")
+            Commands["skateboardkick"][2]({Player.Name})
+        end
+    end)
+end)
+
+task.spawn(function()
+    Connections[#Connections + 1] = game.Players.PlayerRemoving:Connect(function(Player)
+        print("[4SQ T7]: Player \""..Player.DisplayName.."\" aka \""..Player.Name.."\" has left the server, user-id: "..Player.UserId)
+    end)
+end)
+
+task.spawn(function()
+    Connections[#Connections + 1] = game:GetService("UserInputService").InputBegan:Connect(function(input, istyping)
+        if istyping or not Variables.KeyBinds then
+            return
+        end
+        local text = Settings.KeyBinds[input.KeyCode.Name]
+        if text then
+            print("[4SQ T7 Keybind Manager]: Executing keybind \""..input.KeyCode.Name.."\" | Text: \""..text.."\".")
+            if string.sub(text, 1, string.len(Settings.Prefix)) == Settings.Prefix then
+                local Message = string.sub(text, string.len(Settings.Prefix) + 1)
+                local Arguments = {}
+                for i in string.gmatch(Message, "([^%s]+)") do
+                    table.insert(Arguments, i)
+                end
+                task.spawn(function()
+                    Handler:RunCommand(Arguments[1], {table.unpack(Arguments, 2)}, Message:sub(Arguments[1]:len() + 2))
+                end)
+            else
+                Functions:Chat(text)
+            end
+        end
+    end)
+end)
+
+task.spawn(function()
+    for i,Message in Settings.AutoCommands do
+        task.spawn(function()
+            local Arguments = {}
+            for i in string.gmatch(Message, "([^%s]+)") do
+                table.insert(Arguments, i)
+            end
+            task.spawn(function()
+                Handler:RunCommand(Arguments[1], {table.unpack(Arguments, 2)}, Message:sub(Arguments[1]:len() + 2))
+                print("[Startup-Commands]: \""..Message.."\"")
+            end)
+        end)
+    end
+end)
+
+-- \\ Command Bar // --
+task.spawn(function()
+    local ScreenGui = Instance.new("ScreenGui")
+	local Frame = Instance.new("Frame")
+	local Frame_2 = Instance.new("Frame")
+	local TextBox = Instance.new("TextBox")
+	local UIStroke = Instance.new("UIStroke")
+	local enabled;
+
+	ScreenGui.Parent = game.CoreGui
+	ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	ScreenGui.DisplayOrder = 9999
+	ScreenGui.IgnoreGuiInset = true
+	ScreenGui.ResetOnSpawn = false
+
+	Frame.Parent = ScreenGui
+	Frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	Frame.BackgroundTransparency = 1.000
+	Frame.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	Frame.BorderSizePixel = 0
+	Frame.Transparency = 1
+	Frame.Size = UDim2.new(1, 0, 1, 0)
+
+	Frame_2.Parent = Frame
+	Frame_2.BackgroundColor3 = Color3.fromRGB(31, 31, 31)
+	Frame_2.BackgroundTransparency = 0.200
+	Frame_2.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	Frame_2.BorderSizePixel = 0
+	Frame_2.Position = UDim2.new(-0.0132391872, 0, 0, 0)
+	Frame_2.Transparency = 0.2
+	Frame_2.Size = UDim2.new(1.0260371, 0, 0.0892857164, 0)
+
+	UIStroke.Parent = Frame_2
+	UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	UIStroke.LineJoinMode = Enum.LineJoinMode.Round
+	UIStroke.Thickness = 2.5
+	UIStroke.Color = Color3.fromRGB(2, 48, 255)
+
+	TextBox.Parent = Frame_2
+	TextBox.BackgroundColor3 = Color3.fromRGB(31, 31, 31)
+	TextBox.BackgroundTransparency = 1.000
+	TextBox.BorderColor3 = Color3.fromRGB(0, 0, 0)
+	TextBox.BorderSizePixel = 0
+	TextBox.Position = UDim2.new(0.0228084419, 0, 0.119999997, 0)
+	TextBox.Size = UDim2.new(0.954382956, 0, 0.75999999, 0)
+	TextBox.Transparency = 1
+	TextBox.TextTransparency = 0
+	TextBox.Font = Enum.Font.SourceSans
+	TextBox.PlaceholderColor3 = Color3.fromRGB(140, 140, 140)
+	TextBox.PlaceholderText = "Type Here"
+	TextBox.Text = ""
+	TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+	TextBox.TextSize = 20.000
+	TextBox.TextXAlignment = Enum.TextXAlignment.Left
+	task.wait(0.5)
+	Frame_2:TweenPosition(UDim2.new(-0.0132391872, 0, -1, 0), "Out", "Quad", 0.3)
+	enabled = false
+	TextBox.Focused:Connect(function()
+		TextBox.Text = ""
+		enabled = true
+		Frame_2.Position = UDim2.new(-0.0132391872, 0, 0, 0)
+	end)
+	TextBox.FocusLost:Connect(function()
+		if TextBox.Text ~= "" then
+            if string.sub(TextBox.Text, 1, string.len(Settings.Prefix)) == Settings.Prefix then
+                local Message = string.sub(TextBox.Text, string.len(Settings.Prefix) + 1)
+                local Arguments = {}
+                for i in string.gmatch(Message, "([^%s]+)") do
+                    table.insert(Arguments, i)
+                end
+                task.spawn(function()
+                    Handler:RunCommand(Arguments[1], {table.unpack(Arguments, 2)}, Message:sub(Arguments[1]:len() + 2))
+                end)
+            else
+                Functions:Chat(TextBox.Text)
+            end
+			TextBox.Text = ""
+		end
+		enabled = false
+		Frame_2.Position = UDim2.new(-0.0132391872, 0, -1, 0)
+	end)
+	game:GetService("UserInputService").InputEnded:Connect(function(key, gpe)
+		if key.KeyCode == Enum.KeyCode.Semicolon and not gpe then
+			if not enabled then
+				TextBox:CaptureFocus()
+			end
+		end
+	end)
+end)    else
+        game:GetService("TextChatService"):WaitForChild("TextChannels"):WaitForChild("RBXGeneral"):SendAsync(String)
+    end
+end
+
+function Functions:Notification(TitleText, MessageText, DurationSeconds)
+    game.StarterGui:SetCore("SendNotification", {Title = TitleText, Text = MessageText, Duration = DurationSeconds})
+end
+
+function Handler:CheckArguments(Table1, Table2)
+    local Arguments = {}
+    for i,v in Table1 do
+        if string.sub(v, 1, 1) .. string.sub(v, -1) == "**" then
+            table.insert(Arguments, {v,1})
+        else
+            table.insert(Arguments, {v,0})
+        end
+    end
+    for i,v in Arguments do
+        if not Table2[i] and v[2] == 1 then
+            Functions:Notification("4SQ Argument Handler", "Missing or Invalid Argument #"..tostring(i), 5)
+            return false
+        end
+    end
+    return true
+end
+
+function Functions:IsItemAllowed(Item)
+    local IsItemClassAllowed = (Item:IsA("BasePart") and not Item:IsA("Terrain")) or (Item:IsA("Model") and not Item:IsA("Workspace")) or Item:IsA("Folder") or Item:IsA("Smoke") or Item:IsA("Fire") or Item:IsA("Sparkles") or Item:IsA("DataModelMesh") or Item:IsA("Decal") or Item:IsA("Texture") or Item:IsA("ParticleEmitter") or Item:IsA("Highlight") or Item:IsA("SelectionBox") or Item:IsA("TextLabel") or Item:IsA("SurfaceGui") or Item:IsA("Light") or Item:IsA("Constraint") or Item:IsA("Attachment")
+    if not IsItemClassAllowed or not Item:IsDescendantOf(workspace) then
+        return false
+    end
+    return true
+end
+
+function Handler:AddCommand(Name, CommandTable, Function)
+    Commands[string.lower(Name)] = {CommandTable, Function}
+    if not CommandTable.Arguments then
+        CommandTable.Arguments = {}
+    end
+    if CommandTable.Aliases and #CommandTable.Aliases > 0 then
+        for i,v in CommandTable.Aliases do
+            Aliases[string.lower(v)] = Name
+        end
+    end
+    if not CommandTable.Description then
+        CommandTable.Description = ""
+    end
+end
+
+function Handler:RunCommand(CommandName, Arguments, FullString)
+    local Command = Commands[CommandName] or Commands[Aliases[CommandName]]
+    if not Command then
+        Functions:Notification("4SQ Command Handler", "Invalid Command Name", 5)
+        return
+    end
+    local ArgumentsApproved = Handler:CheckArguments(Command[1].Args, Arguments)
+    if ArgumentsApproved then
+        Command[2](Arguments, FullString)
+    end
+end
+
+function f3x(tbl) -- f3x id: 142785488
+	local tool
+	tool = game.Players.LocalPlayer.Backpack:FindFirstChild("Building Tools") or (game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("Building Tools"))
+	if not tool then
+		Functions:Chat("btools me")
+		tool = game.Players.LocalPlayer.Backpack:WaitForChild("Building Tools", 2)
+	end
+	assert(tool, "Failed to get Building Tools")
+	local SyncAPI = tool:WaitForChild("SyncAPI", 2)
+	assert(SyncAPI, "Failed to retrieve SyncAPI")
+	local ServerEndpoint = SyncAPI:WaitForChild("ServerEndpoint", 2)
+	assert(ServerEndpoint, "Failed to retrieve ServerEndpoint")
+	if tbl then
+		return ServerEndpoint:InvokeServer(unpack(tbl))
+	end
+end
+
+function Functions:GetChildrenOfName(instance, name)
+    local tbl = {}
+    for i,v in instance:GetChildren() do
+        if v.Name == name then
+            table.insert(tbl, v)
+        end
+    end
+    return tbl
+end
+
+function Functions:GetChildrenOfClass(instance, classname)
+    local tbl = {}
+    for i,v in instance:GetChildren() do
+        if v:IsA(classname) then
+            table.insert(tbl, v)
+        end
+    end
+    return tbl
+end
+
+function gp(str)
+	if str and type(str) == "string" and str ~= "" then
+		local players = game.Players:GetPlayers()
+		if str:lower() == "all" then
+			return players
+		elseif str:lower() == "others" then
+			table.remove(players, table.find(players, game.Players.LocalPlayer))
+			return players
+		elseif str:lower() == "me" then
+			return {game.Players.LocalPlayer}
+		elseif str:lower() == "friends" then
+			for i, v in players do
+				if not v:IsFriendsWith(game.Players.LocalPlayer.UserId) then
+					table.remove(players, i)
+				end
+			end
+			return players
+        elseif str:lower() == "nonfriends" then
+            table.remove(players, table.find(players, game.Players.LocalPlayer))
+            for i, v in players do
+				if v:IsFriendsWith(game.Players.LocalPlayer.UserId) then
+					table.remove(players, i)
+				end
+			end
+			return players
+        elseif str:lower() == "random" then
+            return {players[math.random(1, #players)]}
+		else
+			players = {}
+			for i, v in game.Players:GetPlayers() do
+				if v.Name:lower():sub(1, str:len()) == str:lower() or v.DisplayName:lower():sub(1, str:len()) == str:lower() then
+					table.insert(players, v)
+				end
+			end
+			return players
+		end
+	else
+		return {}
+	end
+end
+
+function Functions:IsDescendantOfPlayerCharacter(instance)
+    local character = instance:FindFirstAncestorOfClass("Model")
+    local Player = game.Players:GetPlayerFromCharacter(character)
+    if Player then
+        return true
+    else
+        return false
+    end
+end
+
+function Functions:WaitForChildOfClass(instance, classname, timeout)
+    for i,v in instance:GetChildren() do
+        if v:IsA(classname) then
+            return v
+        end
+    end
+    local start = os.clock()
+    local found
+    local connection
+    connection = instance.ChildAdded:Connect(function(child)
+        if child:IsA(classname) then
+            found = child
+        end
+    end)
+    while not found do
+        if timeout and (os.clock() - start) >= timeout then
+            connection:Disconnect()
+            return nil
+        end
+        task.wait()
+    end
+    connection:Disconnect()
+    return found
+end
+
+function Functions:RegenerateSettings()
+    if not SettingsPreset.FileSystem then
+        return
+    end
+    local success, Encoded = pcall(function()
+        return game:GetService("HttpService"):JSONEncode(Settings)
+    end)
+    if success and Encoded then
+        writefile("4SQ-T7/Settings.json", Encoded)
+        print("[4SQ T7 File Manager]: Updated Settings.json")
+    else
+        warn("[4SQ T7 File Manager]: Failed to encode Settings.")
+    end
+end
+
+task.spawn(function()
+    ChangeLogs = game:HttpGet("https://raw.githubusercontent.com/blueskykah/4SQ-T7/refs/heads/main/ChangeLog") or "Failed to retrieve ChangeLogs"
+end)
+
+if genv and genv.sethiddenproperty then
+    sethiddenproperty(workspace, "SignalBehavior", Enum.SignalBehavior.Immediate)
+    print("Set signal behavior to immediate.")
+end
+
+if genv and genv.isfolder and genv.makefolder and genv.writefile and genv.isfile and genv.readfile and SettingsPreset.FileSystem then
+    print("[4SQ T7 File Manager]: Creating and/or initializing files...")
+    if not isfolder("4SQ-T7") then
+        print("[4SQ T7 File Manager]: Root folder not found, creating a new one...")
+        makefolder("4SQ-T7")
+        print("[4SQ T7 File Manager]: Created root folder.")
+    end
+    local SettingsFile = isfile("4SQ-T7/Settings.json")
+    if not SettingsFile then
+        print("[4SQ T7 File Manager]: Settings.json not found or broken, attempting to create a new one with default preset...")
+        local success, Encoded = pcall(function()
+            return game:GetService("HttpService"):JSONEncode(SettingsPreset)
+        end)
+        if success and Encoded then
+            writefile("4SQ-T7/Settings.json", Encoded)
+            print("[4SQ T7 File Manager]: New Settings.json has been created.")
+        else
+            warn("[4SQ T7 File Manager]: Failed to encode default Settings.")
+        end
+    else
+        local success, decoded = pcall(function()
+            return game:GetService("HttpService"):JSONDecode(readfile("4SQ-T7/Settings.json"))
+        end)
+        if success and type(decoded) == "table" then
+            Settings = decoded
+            print("[4SQ T7 File Manager]: Settings successfully loaded from Settings.json")
+        else
+            warn("[4SQ T7 File Manager]: Settings.json is corrupted or invalid. Using defaults.")
+        end
+    end
+else
+    print("[4SQ T7 File Manager]: Using preset settings.")
+end
+
+-- \\ Commands // --
+
+Handler:AddCommand("wakacommands", {Args = {}, Aliases = {"wcmds"}, Description = ""}, function(Arguments, FullString)
+    local Str = "\nAsterisks around an argument means the argument is required for the command to function and vice-versa\n\n"
+    for i,v in Commands do
+        Str ..= Settings.Prefix..i.." Description = \""..v[1].Description.."\" | Arguments = {"..table.concat(v[1].Args, ", ").."} | Aliases = {"..table.concat(v[1].Aliases, ", ").."}\n\n"
+    end
+
+    Str ..= [[
+
+========== WAKAS897 CMDS ==========
+
+-- PREFIX IS (-) --
+-- TO ACTIVE PERM ADMIN SAY -PERM --
+
+ypg = setup skateboard kick
+ypj = setup potato kick
+ban (username) = ban a player so he can't join you again
+clrbans = clear all banned players IDs from banlist
+rk = potato kick
+py = skateboard kick
+sl skat = serverlock using skateboard method any new player join will be crashed
+hou = teleport to house
+jm = join messages / leave messages
+storm = weather
+Volcano = weather
+sunset = weather
+rj / rejoin = rejoins the same server
+tnok = no obby kill
+lk (username) = lock player in sky while blinded punished until unlk
+unlk (username) = unlocks a player from setgrav punish blind loop
+pads = gets you all admin pads once
+loopgrab = gets all 9 admin pads loopgrabbing until you say -stoploopgrab (laggy a bit)
+nuke (username) = spam explode a player stops after 20 explodes
+spam (command) (username) = spam a command until -stopspam
+stopspam = stop the spam looping command
+gb (username) = GEARBAN A PLAYER SO HE CAN'T USE GEARS AGAIN
+ungb (username) = UNGEARBAN A PLAYER SO HE CAN USE GEARS AGAIN
+
+==========================================
+]]
+
+    print(Str)
+    Functions:Notification("Alert", "Check developer console to see a list of commands.", 5)
+end)
+
+Handler:AddCommand("lk", {Args = {"*Player"}, Aliases = {}, Description = "Runs setgrav, punish and blind until unlk."}, function(Arguments, FullString)
+    local Target = Arguments[1]
+
+    if not Target then
+        return
+    end
+
+    Variables.LKLoop = true
+
+    task.spawn(function()
+        for i = 1, 10000 do
+            if not Variables.LKLoop then
+                break
+            end
+
+            Functions:Chat("setgrav "..Target.." -20e20")
+            task.wait(0.1)
+            Functions:Chat("blind "..Target)
+            task.wait(0.2)
+            Functions:Chat("punish "..Target)
+
+            if i < 10000 then
+                task.wait(2)
+            end
+        end
+
+        Variables.LKLoop = false
+    end)
+end)
+
+local VisParts = {}
+local VisTarget = nil
+local VisRunning = false
+local VisCrazy = false
+local RainbowRunning = false
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local function FindPlayer(Name)
+    if not Name then
+        return LocalPlayer
+    end
+
+    Name = Name:lower()
+
+    for _, Player in ipairs(Players:GetPlayers()) do
+        if Player.Name:lower():sub(1, #Name) == Name
+        or Player.DisplayName:lower():sub(1, #Name) == Name then
+            return Player
+        end
+    end
+
+    return nil
+end
+
+local function GetNewPart(Existing)
+    for _, V in ipairs(workspace:GetDescendants()) do
+        if V:IsA("BasePart")
+        and not Existing[V]
+        and V.Size == Vector3.new(2, 2, 2) then
+            return V
+        end
+    end
+end
+
+local function CreateVisPart()
+    local Existing = {}
+
+    for _, V in ipairs(workspace:GetDescendants()) do
+        if V:IsA("BasePart") then
+            Existing[V] = true
+        end
+    end
+
+    Functions:Chat("part/2/2/2")
+
+    for _ = 1, 20 do
+        local Part = GetNewPart(Existing)
+
+        if Part then
+            table.insert(VisParts, Part)
+            return Part
+        end
+
+        task.wait(0.05)
+    end
+end
+
+local function StartVis(Target)
+    if VisRunning then
+        VisTarget = Target
+        return
+    end
+
+    VisRunning = true
+    VisTarget = Target or LocalPlayer
+
+    -- Create 10 parts
+    for i = 1, 10 do
+        CreateVisPart()
+        task.wait(0.08)
+    end
+
+    task.spawn(function()
+        while VisRunning do
+            local Character = VisTarget and VisTarget.Character
+            local Root = Character and Character:FindFirstChild("HumanoidRootPart")
+
+            if Root then
+                local Time = os.clock()
+                local Count = #VisParts
+
+                for i, Part in ipairs(VisParts) do
+                    if Part and Part.Parent then
+
+                        local Angle =
+                            Time * (VisCrazy and 7 or 2)
+                            + ((i - 1) / Count) * math.pi * 2
+
+                        -- Normal: 10–15 studs
+                        -- Crazy: rapidly changes between 8–18 studs
+                        local Radius
+
+                        if VisCrazy then
+                            Radius =
+                                13
+                                + math.sin(Time * 10 + i * 1.7) * 5
+                                + math.sin(Time * 17 + i) * 2
+                        else
+                            Radius =
+                                12
+                                + math.sin(Time * 2 + i) * 3
+                        end
+
+                        -- Slightly underneath/around the player
+                        local Height
+
+                        if VisCrazy then
+                            Height =
+                                0
+                                + math.sin(Time * 9 + i) * 5
+                        else
+                            Height =
+                                1.5
+                                + math.sin(Time * 3 + i) * 1.5
+                        end
+
+                        local Offset = Vector3.new(
+                            math.cos(Angle) * Radius,
+                            Height,
+                            math.sin(Angle) * Radius
+                        )
+
+                        Part.CFrame =
+                            CFrame.new(Root.Position + Offset)
+                    end
+                end
+            end
+
+            task.wait()
+        end
+    end)
+end
+
+-- .vis
+-- .vis Username
+Handler:AddCommand("vis", {
+    Args = {"*Player"},
+    Aliases = {},
+    Description = "Creates floating VIS parts."
+}, function(Arguments)
+
+    local Target = FindPlayer(Arguments[1])
+
+    if not Target then
+        return
+    end
+
+    StartVis(Target)
+end)
+
+-- .move vis
+Handler:AddCommand("move", {
+    Args = {"*Text"},
+    Aliases = {},
+    Description = "Makes VIS move faster and crazier."
+}, function(Arguments)
+
+    if Arguments[1]
+    and Arguments[1]:lower() == "vis" then
+
+        if VisRunning then
+            VisCrazy = true
+        end
+    end
+end)
+
+-- .rainbowvis
+Handler:AddCommand("rainbowvis", {
+    Args = {},
+    Aliases = {"rainbow"},
+    Description = "Makes VIS parts rainbow."
+}, function()
+
+    if not VisRunning then
+        StartVis(LocalPlayer)
+    end
+
+    -- Give PaintBucket through your existing gear command
+    Functions:Chat("gear me paintbucket")
+
+    task.wait(0.3)
+
+    if RainbowRunning then
+        return
+    end
+
+    RainbowRunning = true
+
+    task.spawn(function()
+        local Hue = 0
+
+        while RainbowRunning and VisRunning do
+            Hue = (Hue + 0.015) % 1
+
+            local RainbowColor = Color3.fromHSV(Hue, 1, 1)
+
+            for _, Part in ipairs(VisParts) do
+                if Part and Part.Parent then
+                    Part.Color = RainbowColor
+                end
+            end
+
+            task.wait(0.05)
+        end
+    end)
+end)
+
+-- .unvis
+Handler:AddCommand("unvis", {
+    Args = {},
+    Aliases = {},
+    Description = "Stops VIS."
+}, function()
+
+    VisRunning = false
+    RainbowRunning = false
+    VisCrazy = false
+    VisTarget = nil
+
+    for _, Part in ipairs(VisParts) do
+        if Part and Part.Parent then
+            Part:Destroy()
+        end
+    end
+
+    table.clear(VisParts)
+end)
+
+Handler:AddCommand("unlk", {Args = {}, Aliases = {}, Description = "Stops the LK loop."}, function(Arguments, FullString)
+    Variables.LKLoop = false
+end)
+
+Handler:AddCommand("volcano", {Args = {}, Aliases = {}, Description = "Volcano atmosphere."}, function(Arguments, FullString)
+    Functions:Chat("time 18")
+    task.wait(0.1)
+
+    Functions:Chat("brightness 2")
+    task.wait(0.1)
+
+    Functions:Chat("ambient 1 nan nan")
+    task.wait(0.1)
+
+    Functions:Chat("fogend 40")
+    task.wait(0.1)
+
+    Functions:Chat("music 9112822944")
+end)
+
+Handler:AddCommand("noobbykill", {Args = {}, Aliases = {"tnok"}, Description = "Disables touch on the obby parts."}, function(Arguments, FullString)
+    for _, c in game.Workspace.Tabby.Admin_House.Obby:GetChildren() do
+        if c:IsA("BasePart") then
+            c.CanTouch = false
+        end
+    end
+end)
+
+local ActiveBeams = {}
+
+local function FindPlayer(Name)
+    if not Name then return nil end
+    Name = Name:lower()
+
+    for _, P in ipairs(game.Players:GetPlayers()) do
+        if P.Name:lower():sub(1, #Name) == Name
+        or P.DisplayName:lower():sub(1, #Name) == Name then
+            return P
+        end
+    end
+end
+
+Handler:AddCommand("beam", {
+    Args = {"*Player"},
+    Aliases = {},
+    Description = "Creates a realistic beam above a player."
+}, function(Arguments)
+
+    local Target = FindPlayer(Arguments[1])
+    if not Target then return end
+
+    if ActiveBeams[Target] then
+        ActiveBeams[Target]:Destroy()
+        ActiveBeams[Target] = nil
+    end
+
+    local Existing = {}
+
+    for _, V in ipairs(workspace:GetDescendants()) do
+        if V:IsA("BasePart") then
+            Existing[V] = true
+        end
+    end
+
+    -- Spawn the server-sided part
+    Functions:Chat("part/10/10/10")
+
+    local Part
+
+    for i = 1, 30 do
+        for _, V in ipairs(workspace:GetDescendants()) do
             if V:IsA("function Functions:GetChildrenOfName(instance, name)
     local tbl = {}
     for i,v in instance:GetChildren() do
